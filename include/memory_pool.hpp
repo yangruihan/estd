@@ -168,7 +168,9 @@ namespace estd
         {
             auto ptr = block_head_;
             os << "\n--------------------------------------------------" << std::endl;
-            os << format_str("Memory Info | available: %zuBytes = block count: %zu\n", free_size_ * BLOCK_SIZE, free_size_);
+            os << format_str("Memory Info | sum: \t\t%zuBytes - %zu\n", ALLOC_SIZE, ALLOC_BLOCK_COUNT);
+            os << format_str("Memory Info | available: \t%zuBytes - %zu\n", free_size_ * BLOCK_SIZE, free_size_);
+            os << "\n--------------------------------------------------" << std::endl;
             if (ptr->next == ptr)
             {
                 if (_block_get_flag(ptr) == block_flag::USING)
@@ -244,9 +246,10 @@ namespace estd
 
         static void _dump_block(block* blk, std::ostream& os)
         {
-            os << format_str("Memory Info | [%p-%p] Size: %8zu, State: %s\n",
+            os << format_str("Memory Info | [%p-%p] Data Size: %zuBytes - %zu, State: %s\n",
                 blk,
                 blk + blk->size,
+                blk->size * BLOCK_SIZE,
                 blk->size,
                 _block_get_flag(blk) == block_flag::USING ? "USING" : "FREE");
         }
@@ -306,7 +309,7 @@ namespace estd
         {
             auto blk = static_cast<block*>(p);
             blk--; // get block header
-            if (!_verify_address(p, block_flag::USING))
+            if (!_verify_address(blk, block_flag::USING))
                 return false;
 
             // just one block
