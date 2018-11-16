@@ -10,7 +10,7 @@ string ASSERT_TRUE(bool condition)
     if (condition)
         return "Pass";
     
-    throw exception("Failed");
+    throw runtime_error("Failed");
 }
 
 int main()
@@ -41,8 +41,7 @@ int main()
     *j = 28;
     mem_pool->dump(cout);
     cout << ASSERT_TRUE((*j + *i) == 128) << endl;
-
-    ASSERT_TRUE((j - i) * sizeof(int) == 0x20);
+    ASSERT_TRUE((j - i) * sizeof(int) == 2 * mem_pool->block_size());
 
     cout << "-- alloc int k" << endl;
     auto k = mem_pool->alloc<int>();

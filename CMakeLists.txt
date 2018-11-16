@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 
-set(PROJ_NAME cpp_memory)
+set(PROJ_NAME estd)
 
 project(${PROJ_NAME})
 

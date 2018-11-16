@@ -164,6 +164,11 @@ namespace estd
             _init();
         }
 
+        size_t block_size() const
+        {
+            return BLOCK_SIZE;
+        }
+
         void dump(std::ostream& os) const
         {
             auto ptr = block_head_;
