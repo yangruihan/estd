@@ -30,17 +30,25 @@ namespace estd
     * memory block struct
     * size         4 Bytes
     * block_flag   4 Bytes
-    * prev         4 Bytes
-    * next         4 Bytes
-    * sum         16 Bytes
+    * prev         8 Bytes
+    * next         8 Bytes
+    * sum         24 Bytes
     *
     */
     struct block
     {
         uint32_t    size;   // data size, (total_size / BLOCK_SIZE)
         block_flag  flag;   // falg for block
-        block*      prev;   // pointer to prev block
-        block*      next;   // pointer to next block
+
+        union {
+            block*      prev;   // pointer to prev block
+            uint64_t    __p;
+        };
+
+        union {
+            block*      next;   // pointer to next block
+            uint64_t    __n;
+        };
     };
 
     static const size_t BLOCK_SIZE          = sizeof(block);
@@ -204,7 +212,7 @@ namespace estd
 
         static size_t _block_align8(const size_t& size)
         {
-            if (size & BLOCK_SIZE_MASK == 0)
+            if ((size & BLOCK_SIZE_MASK) == 0)
                 return size / BLOCK_SIZE;
             return (size / BLOCK_SIZE) + 1;
         }
