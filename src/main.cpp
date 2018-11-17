@@ -54,6 +54,7 @@ int main()
     mem_pool->free(j);
     mem_pool->dump(cout);
 
+    cout << "-- alloc int arr " << endl;
     auto arr = mem_pool->alloc_arr<int>(10);
     for (size_t i = 0; i < 10; i++)
         *(arr + i) = i;

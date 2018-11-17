@@ -19,7 +19,7 @@ namespace estd
 
     static const size_t C_DEFAULT_POOL_SIZE = 4096; // Default pool size is 4kb
 
-    enum block_flag : uint32_t
+    enum block_flag : uint64_t
     {
         FREE = 0,
         USING = 1,
@@ -28,16 +28,16 @@ namespace estd
     
     /**
     * memory block struct
-    * size         4 Bytes
-    * block_flag   4 Bytes
+    * size         8 Bytes
+    * block_flag   8 Bytes
     * prev         8 Bytes
     * next         8 Bytes
-    * sum         24 Bytes
+    * sum         32 Bytes
     *
     */
     struct block
     {
-        uint32_t    size;   // data size, (total_size / BLOCK_SIZE)
+        uint64_t    size;   // data size, (total_size / BLOCK_SIZE)
         block_flag  flag;   // falg for block
 
         union {
@@ -51,8 +51,8 @@ namespace estd
         };
     };
 
-    static const size_t BLOCK_SIZE          = sizeof(block);
-    static const uint8_t BLOCK_SIZE_MASK    = 0x7;
+    static const size_t BLOCK_SIZE      = sizeof(block);
+    static const size_t BLOCK_SIZE_MASK = BLOCK_SIZE - 1;
     
     
     /**
@@ -244,7 +244,7 @@ namespace estd
         }
 
         /**
-         *   curt           next
+         *    curt          next
          * -----------    --------
          * | To Free | -> | Free |
          * -----------    --------
