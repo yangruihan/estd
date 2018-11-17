@@ -144,10 +144,10 @@ namespace estd
             return obj;
         }
 
-        template<class T>
-        T* realloc(T* obj)
+        template<class T, class Y>
+        Y* realloc(T* obj)
         {
-            return static_cast<T*>(_realloc(obj, sizeof(T)));
+            return static_cast<Y*>(_realloc(obj, sizeof(Y)));
         }
 
         template<class T>
