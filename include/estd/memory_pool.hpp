@@ -172,6 +172,16 @@ namespace estd
             _init();
         }
 
+        size_t free_size() const
+        {
+            return BLOCK_SIZE * free_size_;
+        }
+
+        size_t free_block_count() const
+        {
+            return free_size_;
+        }
+
         size_t block_size() const
         {
             return BLOCK_SIZE;
