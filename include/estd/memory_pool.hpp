@@ -17,9 +17,10 @@ namespace estd
         return std::string(str_buffer);
     }
 
-    static const size_t C_DEFAULT_POOL_SIZE = 4096; // Default pool size is 4kB
+    static const size_t C_DEFAULT_POOL_SIZE = 4096;         // Default pool size is 4kB
+    static const uint32_t C_MAGIC_NUMBER    = 0x6ebf2966;   // magic number
 
-    enum block_flag : uint64_t
+    enum block_flag : uint32_t
     {
         FREE = 0,
         USING = 1,
@@ -29,7 +30,8 @@ namespace estd
     /**
     * memory block struct
     * size         8 Bytes
-    * block_flag   8 Bytes
+    * block_flag   4 Bytes
+    * magic_number 4 Bytes
     * prev         8 Bytes
     * next         8 Bytes
     * sum         32 Bytes
@@ -39,6 +41,7 @@ namespace estd
     {
         uint64_t    size;       // data size, (total_size / BLOCK_SIZE)
         block_flag  flag;       // falg for block
+        uint32_t    magic_num;  // magic number for verify
 
         union {
             block*      prev;   // pointer to prev block
@@ -443,6 +446,7 @@ namespace estd
         {
             _block_set_flag(block_curt_, block_flag::USING);
             block_curt_->size = size;
+            block_curt_->magic_num = C_MAGIC_NUMBER;
             free_size_ -= size + BLOCK_SIZE;
             const auto data = static_cast<void*>(block_curt_ + 1);
             block_curt_ = block_curt_->next;
@@ -453,7 +457,10 @@ namespace estd
         {
             if (b < block_head_ || (char*)b >= (char*)block_head_ + ALLOC_SIZE)
                 return false;
-            
+
+            if (b->magic_num != C_MAGIC_NUMBER)
+                return false;
+
             return (b->next->prev == b) && (b->prev->next == b) && (_block_get_flag(b) == flag);
         }
     };
