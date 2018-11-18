@@ -355,12 +355,14 @@ namespace estd
             {
             // prev USING | next USING
             case 0:
+                if (block_curt_ > blk)
+                    block_curt_ = blk;
                 _block_set_flag(blk, block_flag::FREE);
                 break;
 
             // prev USING | next FREE
             case 1:
-                if (block_curt_ == next_b)
+                if (block_curt_ > blk)
                     block_curt_ = blk;
                 _block_merge(blk, next_b);
                 _block_set_flag(blk, block_flag::FREE);
@@ -368,14 +370,14 @@ namespace estd
 
             // prev FREE | next USING
             case 2:
-                if (block_curt_ == blk)
+                if (block_curt_ > prev_b)
                     block_curt_ = prev_b;
                 _block_merge(prev_b, blk);
                 break;
 
             // prev FREE | next FREE
             case 3:
-                if (block_curt_ == next_b)
+                if (block_curt_ > prev_b)
                     block_curt_ = prev_b;
                 _block_merge(prev_b, blk);
                 _block_merge(prev_b, next_b);
