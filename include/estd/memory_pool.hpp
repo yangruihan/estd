@@ -17,7 +17,7 @@ namespace estd
         return std::string(str_buffer);
     }
 
-    static const size_t C_DEFAULT_POOL_SIZE = 4096; // Default pool size is 4kb
+    static const size_t C_DEFAULT_POOL_SIZE = 4096; // Default pool size is 4kB
 
     enum block_flag : uint64_t
     {
@@ -37,8 +37,8 @@ namespace estd
     */
     struct block
     {
-        uint64_t    size;   // data size, (total_size / BLOCK_SIZE)
-        block_flag  flag;   // falg for block
+        uint64_t    size;       // data size, (total_size / BLOCK_SIZE)
+        block_flag  flag;       // falg for block
 
         union {
             block*      prev;   // pointer to prev block
@@ -52,7 +52,7 @@ namespace estd
     };
 
     static const size_t BLOCK_SIZE      = sizeof(block);
-    static const size_t BLOCK_SIZE_MASK = BLOCK_SIZE - 1;
+    static const size_t BLOCK_SIZE_MASK = 0x7;
     
     
     /**
@@ -109,8 +109,7 @@ namespace estd
     class legacy_memory_pool
     {
     public:
-        const size_t ALLOC_BLOCK_COUNT  = DefaultSize / BLOCK_SIZE;
-        const size_t ALLOC_SIZE         = DefaultSize;
+        const size_t ALLOC_SIZE = DefaultSize;
 
         legacy_memory_pool() { _create(); }
         virtual ~legacy_memory_pool() { _destroy();  }
@@ -162,14 +161,14 @@ namespace estd
             return _free(obj);
         }
 
-        size_t available() const
-        {
-            return free_size_ * BLOCK_SIZE;
-        }
-        
         void clear()
         {
             _init();
+        }
+
+        size_t available() const
+        {
+            return free_size_;
         }
 
         size_t block_size() const
@@ -181,8 +180,8 @@ namespace estd
         {
             auto ptr = block_head_;
             os << "\n--------------------------------------------------" << std::endl;
-            os << format_str("Memory Info | sum: \t\t%zuBytes - %zu\n", ALLOC_SIZE, ALLOC_BLOCK_COUNT);
-            os << format_str("Memory Info | available: \t%zuBytes - %zu\n", free_size_ * BLOCK_SIZE, free_size_);
+            os << format_str("Memory Info | sum: \t\t%zuBytes\n", ALLOC_SIZE);
+            os << format_str("Memory Info | available: \t%zuBytes\n", free_size_);
             os << "\n--------------------------------------------------" << std::endl;
             if (ptr->next == ptr)
             {
@@ -213,8 +212,8 @@ namespace estd
         static size_t _block_align8(const size_t& size)
         {
             if ((size & BLOCK_SIZE_MASK) == 0)
-                return size / BLOCK_SIZE;
-            return (size / BLOCK_SIZE) + 1;
+                return size;
+            return ((size >> 3) + 1) << 3;
         }
 
         static void _block_init(block* b, const size_t& size)
@@ -243,7 +242,7 @@ namespace estd
         {
             next->next->prev = curt;
             curt->next = next->next;
-            curt->size += next->size + 1;
+            curt->size += next->size + BLOCK_SIZE;
             return curt->size;
         }
 
@@ -259,24 +258,23 @@ namespace estd
 
         static void _dump_block(block* blk, std::ostream& os)
         {
-            os << format_str("Memory Info | [%p-%p] Data Size: %zuBytes - %zu, State: %s\n",
+            os << format_str("Memory Info | [%p-%p] Data Size: %zuBytes | State: %s\n",
                 blk,
-                blk + blk->size,
-                blk->size * BLOCK_SIZE,
+                (char*)(blk + 1) + blk->size,
                 blk->size,
                 _block_get_flag(blk) == block_flag::USING ? "USING" : "FREE");
         }
 
         void _create()
         {
-            block_head_ = allocator_.template alloc_arr<block>(ALLOC_BLOCK_COUNT);
+            block_head_ = (block*)allocator_.template alloc_arr<char>(ALLOC_SIZE);
             _init();
         }
 
         void _init()
         {
-            free_size_ = ALLOC_BLOCK_COUNT;
-            _block_init(block_head_, free_size_ - 1);
+            free_size_ = ALLOC_SIZE - block_size();
+            _block_init(block_head_, free_size_);
             block_head_->prev = block_head_->next = block_head_;
             block_curt_ = block_head_;
         }
@@ -338,7 +336,7 @@ namespace estd
             const auto next_b_mask = (_block_get_flag(next_b) == block_flag::FREE) && blk < next_b;
             const auto mask = (prev_b_mask << 1) + next_b_mask;
 
-            free_size_ += blk->size + 1;
+            free_size_ += blk->size + block_size();
             switch (mask)
             {
             // prev USING | next USING
@@ -396,8 +394,7 @@ namespace estd
                 return nullptr;
             }
             auto old_size = blk->size;
-            memmove(alloc_ret, p, BLOCK_SIZE *
-                (old_size > aligned_size ? aligned_size : old_size));
+            memmove(alloc_ret, p, (old_size > aligned_size ? aligned_size : old_size));
             _free(p);
             return alloc_ret;
         }
@@ -407,8 +404,8 @@ namespace estd
             if (block_curt_->size == size)
                 return _alloc_cur_block(size);
 
-            const auto new_size = block_curt_->size - size - 1;
-            const auto new_block = block_curt_ + size + 1;
+            const auto new_size = block_curt_->size - size - block_size();
+            const auto new_block = (block*)((char*)block_curt_ + size + block_size());
             _block_init(new_block, new_size);
             _block_connect(block_curt_, new_block);
             return _alloc_cur_block(size);
@@ -418,7 +415,7 @@ namespace estd
         {
             _block_set_flag(block_curt_, block_flag::USING);
             block_curt_->size = size;
-            free_size_ -= size + 1;
+            free_size_ -= size + block_size();
             const auto data = static_cast<void*>(block_curt_ + 1);
             block_curt_ = block_curt_->next;
             return data;
@@ -426,7 +423,7 @@ namespace estd
 
         bool _verify_address(const block* b, const block_flag& flag) const
         {
-            if (b < block_head_ || b >= block_head_ + ALLOC_BLOCK_COUNT)
+            if (b < block_head_ || (char*)b >= (char*)block_head_ + ALLOC_SIZE)
                 return false;
             
             return (b->next->prev == b) && (b->prev->next == b) && (_block_get_flag(b) == flag);
