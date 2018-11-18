@@ -48,7 +48,7 @@ int main()
         size_int = sizeof(int);
     else
         size_int = ((sizeof(int) >> 3) + 1) << 3;
-    ASSERT_TRUE((j - i) * sizeof(int) == mem_pool->block_size() + size_int);
+    ASSERT_TRUE((j - i) * sizeof(int) == estd::BLOCK_SIZE + size_int);
 
     cout << "-- alloc int k" << endl;
     auto k = mem_pool->alloc<int>();

@@ -171,24 +171,25 @@ namespace estd
             return free_size_;
         }
 
-        size_t block_size() const
-        {
-            return BLOCK_SIZE;
-        }
-
         void dump(std::ostream& os) const
         {
             auto ptr = block_head_;
-            os << "\n--------------------------------------------------" << std::endl;
-            os << format_str("Memory Info | sum: \t\t%zuBytes\n", ALLOC_SIZE);
-            os << format_str("Memory Info | available: \t%zuBytes\n", free_size_);
-            os << "\n--------------------------------------------------" << std::endl;
+            os << "\n----------------------------------------------------------------------------------------" << std::endl;
+            os << format_str("- Memory | sum: \t%zuB\n", ALLOC_SIZE);
+            os << format_str("- Memory | available: \t%zuB\n", free_size_);
+            os << format_str("- Memory | %p-%p\n", block_head_, (char*)block_head_ + ALLOC_SIZE);
+            os << "----------------------------------------------------------------------------------------" << std::endl;
             if (ptr->next == ptr)
             {
                 if (_block_get_flag(ptr) == block_flag::USING)
+                {
                     _dump_block(ptr, os);
+                }
                 else
-                    os << "Memory Info | All Free." << std::endl;
+                {
+                    os << "- Memory | - All Free -" << std::endl;
+                    _dump_block(ptr, os);
+                }
             }
             else
             {
@@ -199,8 +200,19 @@ namespace estd
                     _dump_block(ptr, os);
                     ptr = ptr->next;
                 }
+
+                if (free_size_ > 0 && free_size_ <= BLOCK_SIZE)
+                {
+                    os << format_str("- Memory | %p-%p | Total %4zuB | Header %2zuB | Data %4zuB | %s\n",
+                                     block_head_->prev,
+                                     (char*)block_head_ + ALLOC_SIZE,
+                                     free_size_,
+                                     0,
+                                     0,
+                                     "LOCK");
+                }
             }
-            os << "--------------------------------------------------\n" << std::endl;
+            os << "----------------------------------------------------------------------------------------\n" << std::endl;
         }
 
     private:
@@ -258,11 +270,13 @@ namespace estd
 
         static void _dump_block(block* blk, std::ostream& os)
         {
-            os << format_str("Memory Info | [%p-%p] Data Size: %zuBytes | State: %s\n",
-                blk,
-                (char*)(blk + 1) + blk->size,
-                blk->size,
-                _block_get_flag(blk) == block_flag::USING ? "USING" : "FREE");
+            os << format_str("- Memory | %p-%p | Total %4zuB | Header %2zuB | Data %4zuB | %s\n",
+                             blk,
+                             (char*)(blk + 1) + blk->size,
+                             (blk->size + BLOCK_SIZE),
+                             BLOCK_SIZE,
+                             blk->size,
+                             _block_get_flag(blk) == block_flag::USING ? "USING" : "FREE");
         }
 
         void _create()
@@ -273,8 +287,8 @@ namespace estd
 
         void _init()
         {
-            free_size_ = ALLOC_SIZE - block_size();
-            _block_init(block_head_, free_size_);
+            free_size_ = ALLOC_SIZE;
+            _block_init(block_head_, free_size_ - BLOCK_SIZE);
             block_head_->prev = block_head_->next = block_head_;
             block_curt_ = block_head_;
         }
@@ -288,7 +302,7 @@ namespace estd
         {
             // align size with 8Byte, and div by BLOCK_SIZE
             aligned_size = _block_align8(size);
-            return aligned_size < free_size_;
+            return aligned_size + BLOCK_SIZE <= free_size_;
         }
 
         void* _alloc(const size_t& size)
@@ -296,18 +310,18 @@ namespace estd
             if (size == 0)
                 return nullptr;
 
-            size_t aligned_size;
-            if (!_check_space(size, aligned_size))
+            size_t aligned_data_size;
+            if (!_check_space(size, aligned_data_size))
                 return nullptr;
 
             auto blk = block_curt_;
             do
             {
                 if (_block_get_flag(blk) == block_flag::FREE
-                    && blk->size >= aligned_size)
+                    && blk->size >= aligned_data_size)
                 {
                     block_curt_ = blk;
-                    return _alloc_free_block(aligned_size);
+                    return _alloc_free_block(aligned_data_size);
                 }
 
                 blk = blk->next;
@@ -336,7 +350,7 @@ namespace estd
             const auto next_b_mask = (_block_get_flag(next_b) == block_flag::FREE) && blk < next_b;
             const auto mask = (prev_b_mask << 1) + next_b_mask;
 
-            free_size_ += blk->size + block_size();
+            free_size_ += blk->size + BLOCK_SIZE;
             switch (mask)
             {
             // prev USING | next USING
@@ -399,23 +413,35 @@ namespace estd
             return alloc_ret;
         }
 
+        /**
+         * alloc free block with size
+         * size = aligned data size
+         *
+         */
         void* _alloc_free_block(const size_t& size)
         {
-            if (block_curt_->size == size)
+            // just enough or cann't split new block
+            if (block_curt_->size == size
+                || block_curt_->size <= size + BLOCK_SIZE)
                 return _alloc_cur_block(size);
 
-            const auto new_size = block_curt_->size - size - block_size();
-            const auto new_block = (block*)((char*)block_curt_ + size + block_size());
+            const auto new_size = block_curt_->size - size - BLOCK_SIZE;
+            const auto new_block = (block*)((char*)block_curt_ + size + BLOCK_SIZE);
             _block_init(new_block, new_size);
             _block_connect(block_curt_, new_block);
             return _alloc_cur_block(size);
         }
 
+        /**
+         * alloc current block with size
+         * size = aligned data size
+         *
+         */
         void* _alloc_cur_block(const size_t& size)
         {
             _block_set_flag(block_curt_, block_flag::USING);
             block_curt_->size = size;
-            free_size_ -= size + block_size();
+            free_size_ -= size + BLOCK_SIZE;
             const auto data = static_cast<void*>(block_curt_ + 1);
             block_curt_ = block_curt_->next;
             return data;
