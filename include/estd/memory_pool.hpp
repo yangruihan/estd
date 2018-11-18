@@ -7,7 +7,7 @@
 namespace estd
 {
     
-    static std::string format_str(const char* format, ...)
+    static inline std::string format_str(const char* format, ...)
     {
         char str_buffer[256];
         va_list args;
@@ -170,16 +170,6 @@ namespace estd
         void clear()
         {
             _init();
-        }
-
-        size_t free_size() const
-        {
-            return BLOCK_SIZE * free_size_;
-        }
-
-        size_t free_block_count() const
-        {
-            return free_size_;
         }
 
         size_t block_size() const
