@@ -1,6 +1,6 @@
 #pragma once
 
-#include <forward_list>
+#include <utility>
 #include <cstdarg>
 #include <string>
 
@@ -70,17 +70,17 @@ namespace estd
         static T* alloc_arr(const size_t& size) { return new T[size]; }
 
         template<class T, class ... TArgs>
-        static T* alloc_args(const TArgs &&... args)
+        static T* alloc_args(TArgs&& ... args)
         {
-            return new T(std::forward(args)...);
+            return new T(std::forward<TArgs>(args)...);
         }
 
         template<class T, class ... TArgs>
-        static T* alloc_arr_args(const size_t& size, const TArgs &&... args)
+        static T* alloc_arr_args(const size_t& size, TArgs&& ... args)
         {
             auto p = new T[size];
             for (size_t i = 0; i < size; i++)
-                p[i] = new T(std::forward(args)...);
+                p[i] = new T(std::forward<TArgs>(args)...);
             return p;
         }
 
@@ -127,19 +127,19 @@ namespace estd
         }
 
         template<class T, class ...TArgs>
-        T* alloc_args(const TArgs &&... args)
+        T* alloc_args(TArgs&& ... args)
         {
             T* obj = static_cast<T*>(_alloc(sizeof(T)));
-            (*obj)(std::forward(args)...);
+            new(obj) T(std::forward<TArgs>(args)...);
             return obj;
         }
 
         template<class T, class ...TArgs>
-        T* alloc_arr_args(const size_t& count, const TArgs &&... args)
+        T* alloc_arr_args(const size_t& count, TArgs&& ... args)
         {
             T* obj = static_cast<T*>(_alloc(count * sizeof(T)));
             for (size_t i = 0; i < count; i++)
-                (obj[i])(std::forward(args)...);
+                new (obj + i) T(std::forward<TArgs>(args)...);
             return obj;
         }
 
