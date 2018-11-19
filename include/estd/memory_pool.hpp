@@ -3,6 +3,7 @@
 #include <utility>
 #include <cstdarg>
 #include <string>
+#include <inttypes.h>
 
 namespace estd
 {
@@ -273,7 +274,7 @@ namespace estd
 
         static void _dump_block(block* blk, std::ostream& os)
         {
-            os << format_str("- Memory | %p-%p | Total %4zuB | Header %2zuB | Data %4zuB | %s\n",
+            os << format_str("- Memory | %p-%p | Total %4" PRIu64 "B | Header %2zuB | Data %4" PRIu64 "B | %s\n",
                              blk,
                              (char*)(blk + 1) + blk->size,
                              (blk->size + BLOCK_SIZE),
