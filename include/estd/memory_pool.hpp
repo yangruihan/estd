@@ -7,7 +7,7 @@
 
 namespace estd
 {
-    typedef char* (*dump_obj_handler)(std::ostream& os, const void* obj);
+    typedef std::string (*dump_obj_handler)(const void* obj);
 
     static inline std::string format_str(const char* format, ...)
     {
@@ -198,7 +198,7 @@ namespace estd
                 else
                 {
                     os << "- Memory | - All Free -" << std::endl;
-                    _dump_block(ptr, os, dump_obj_handler);
+                    _dump_block(ptr, os);
                 }
             }
             else
@@ -280,13 +280,17 @@ namespace estd
 
         static void _dump_block(block* blk, std::ostream& os, dump_obj_handler dump_obj_handler = nullptr)
         {
+            const auto blk_flag = _block_get_flag(blk);
             os << format_str("- Memory | %p-%p | Total %4" PRIu64 "B | Header %2zuB | Data %4" PRIu64 "B | %s\n",
                              blk,
                              (char*)(blk + 1) + blk->size,
                              (blk->size + BLOCK_SIZE),
                              BLOCK_SIZE,
                              blk->size,
-                             _block_get_flag(blk) == block_flag::USING ? "USING" : "FREE");
+                             blk_flag == block_flag::USING ? "USING" : "FREE");
+            
+            if (dump_obj_handler != nullptr && blk_flag == block_flag::USING)
+                os << format_str("-- Info | %s\n", dump_obj_handler(static_cast<void*>(blk + 1)).c_str());
         }
 
         void _create()
