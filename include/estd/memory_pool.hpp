@@ -7,7 +7,8 @@
 
 namespace estd
 {
-    
+    typedef char* (*dump_obj_handler)(std::ostream& os, const void* obj);
+
     static inline std::string format_str(const char* format, ...)
     {
         char str_buffer[256];
@@ -180,7 +181,7 @@ namespace estd
             return free_size_;
         }
 
-        void dump(std::ostream& os) const
+        void dump(std::ostream& os, dump_obj_handler dump_obj_handler = nullptr) const
         {
             auto ptr = block_head_;
             os << "\n----------------------------------------------------------------------------------------" << std::endl;
@@ -192,12 +193,12 @@ namespace estd
             {
                 if (_block_get_flag(ptr) == block_flag::USING)
                 {
-                    _dump_block(ptr, os);
+                    _dump_block(ptr, os, dump_obj_handler);
                 }
                 else
                 {
                     os << "- Memory | - All Free -" << std::endl;
-                    _dump_block(ptr, os);
+                    _dump_block(ptr, os, dump_obj_handler);
                 }
             }
             else
@@ -206,7 +207,7 @@ namespace estd
                 ptr = ptr->next;
                 while (ptr != block_head_)
                 {
-                    _dump_block(ptr, os);
+                    _dump_block(ptr, os, dump_obj_handler);
                     ptr = ptr->next;
                 }
 
@@ -277,7 +278,7 @@ namespace estd
             return b->flag;
         }
 
-        static void _dump_block(block* blk, std::ostream& os)
+        static void _dump_block(block* blk, std::ostream& os, dump_obj_handler dump_obj_handler = nullptr)
         {
             os << format_str("- Memory | %p-%p | Total %4" PRIu64 "B | Header %2zuB | Data %4" PRIu64 "B | %s\n",
                              blk,
