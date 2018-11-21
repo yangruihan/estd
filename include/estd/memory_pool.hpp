@@ -173,7 +173,7 @@ namespace estd
 
         size_t available_size() const
         {
-            return free_size_ < BLOCK_SIZE ? 0 : free_size_ - BLOCK_SIZE;
+            return free_size_ <= BLOCK_SIZE ? 0 : free_size_ - BLOCK_SIZE;
         }
 
         size_t free_size() const
