@@ -330,16 +330,16 @@ namespace estd
             allocator_.free_arr(block_head_);
         }
 
-        bool _check_space(const size_t& size, size_t& aligned_size) const
+        size_t _block_align8_with_check_space(const size_t& size) const
         {
-            // align size with 8Byte, and div by BLOCK_SIZE
-            aligned_size = _block_align8(size);
-            return aligned_size + BLOCK_SIZE <= free_size_;
+            // align size with 8Byte
+            const auto aligned_size = _block_align8(size);
+            return aligned_size + BLOCK_SIZE <= free_size_ ? aligned_size : 0;
         }
 
         bool _check_space(const size_t& size, const bool& prepare_alloc = true)
         {
-            // align size with 8Byte, and div by BLOCK_SIZE
+            // align size with 8Byte
             const auto aligned_size = _block_align8(size);
             if (aligned_size + BLOCK_SIZE > free_size_)
                 return false;
@@ -367,8 +367,8 @@ namespace estd
             if (size == 0)
                 return nullptr;
 
-            size_t aligned_data_size;
-            if (!_check_space(size, aligned_data_size))
+            const size_t aligned_data_size = _block_align8_with_check_space(size);
+            if (aligned_data_size == 0)
                 return nullptr;
 
             auto blk = block_curt_;
