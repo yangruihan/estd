@@ -171,11 +171,29 @@ namespace estd
             _init();
         }
 
+        /**
+         * check rest space is enough
+         * 
+         */
+        bool check_space(const size_t& size, const bool& prepare_alloc = true)
+        {
+            return _check_space(size, prepare_alloc);
+        }
+
+        /**
+         * return all available size
+         * (free size) - (block size)
+         * 
+         */
         size_t available_size() const
         {
             return free_size_ <= BLOCK_SIZE ? 0 : free_size_ - BLOCK_SIZE;
         }
 
+        /**
+         * return all free size
+         * 
+         */
         size_t free_size() const
         {
             return free_size_;
@@ -317,6 +335,31 @@ namespace estd
             // align size with 8Byte, and div by BLOCK_SIZE
             aligned_size = _block_align8(size);
             return aligned_size + BLOCK_SIZE <= free_size_;
+        }
+
+        bool _check_space(const size_t& size, const bool& prepare_alloc = true)
+        {
+            // align size with 8Byte, and div by BLOCK_SIZE
+            const auto aligned_size = _block_align8(size);
+            if (aligned_size + BLOCK_SIZE > free_size_)
+                return false;
+            
+            auto blk = block_curt_;
+            do
+            {
+                if (_block_get_flag(blk) == block_flag::FREE
+                    && blk->size >= aligned_size)
+                {
+                    if (prepare_alloc)
+                        block_curt_ = blk;
+                    
+                    return true;
+                }
+
+                blk = blk->next;
+            } while (blk != block_curt_);
+
+            return false;
         }
 
         void* _alloc(const size_t& size)
