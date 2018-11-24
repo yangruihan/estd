@@ -221,7 +221,7 @@ namespace estd
             }
             else
             {
-                _dump_block(ptr, os);
+                _dump_block(ptr, os, dump_obj_handler);
                 ptr = ptr->next;
                 while (ptr != block_head_)
                 {
