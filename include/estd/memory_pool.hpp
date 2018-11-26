@@ -204,7 +204,8 @@ namespace estd
             auto ptr = block_head_;
             os << "\n----------------------------------------------------------------------------------------" << std::endl;
             os << format_str("- Memory | sum: \t%zuB\n", ALLOC_SIZE);
-            os << format_str("- Memory | available: \t%zuB\n", free_size_);
+            os << format_str("- Memory | free: \t%zuB\n", free_size());
+            os << format_str("- Memory | available: \t%zuB\n", available_size());
             os << format_str("- Memory | %p-%p\n", block_head_, (char*)block_head_ + ALLOC_SIZE);
             os << "----------------------------------------------------------------------------------------" << std::endl;
             if (ptr->next == ptr)
@@ -228,26 +229,15 @@ namespace estd
                     _dump_block(ptr, os, dump_obj_handler);
                     ptr = ptr->next;
                 }
-
-                if (free_size_ > 0 && free_size_ <= BLOCK_SIZE)
-                {
-                    os << format_str("- Memory | %p-%p | Total %4zuB | Header %2zuB | Data %4zuB | %s\n",
-                                     block_head_->prev,
-                                     (char*)block_head_ + ALLOC_SIZE,
-                                     free_size_,
-                                     0,
-                                     0,
-                                     "LOCK");
-                }
             }
             os << "----------------------------------------------------------------------------------------\n" << std::endl;
         }
 
     private:
-        Allocator   allocator_;
-        block*      block_head_;
-        block*      block_curt_;
-        size_t      free_size_;     // total_free_size / BLOCK_SIZE
+        Allocator   allocator_;         // allocator, default use default_allocator
+        block*      block_head_;        // the pointer to head block
+        block*      block_curt_;        // the pointer to current block, speed up search
+        size_t      free_size_;         // total free size (avaiable size + lock size)
 
         static size_t _block_align8(const size_t& size)
         {
@@ -390,9 +380,13 @@ namespace estd
         bool _free(void* p)
         {
             auto blk = static_cast<block*>(p);
-            blk--; // get block header
+            // get block header
+            blk--;
+            
             if (!_verify_address(blk, block_flag::USING))
                 return false;
+
+            free_size_ += blk->size + BLOCK_SIZE;
 
             // just one block
             if (blk->next == blk)
@@ -407,7 +401,6 @@ namespace estd
             const auto next_b_mask = (_block_get_flag(next_b) == block_flag::FREE) && blk < next_b;
             const auto mask = (prev_b_mask << 1) + next_b_mask;
 
-            free_size_ += blk->size + BLOCK_SIZE;
             switch (mask)
             {
             // prev USING | next USING
@@ -482,7 +475,7 @@ namespace estd
             // just enough or cann't split new block
             if (block_curt_->size == size
                 || block_curt_->size <= size + BLOCK_SIZE)
-                return _alloc_cur_block(size);
+                return _alloc_cur_block(block_curt_->size);
 
             const auto new_size = block_curt_->size - size - BLOCK_SIZE;
             const auto new_block = (block*)((char*)block_curt_ + size + BLOCK_SIZE);
